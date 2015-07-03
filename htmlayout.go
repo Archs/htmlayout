@@ -9,17 +9,22 @@ import (
 	"github.com/Archs/go-htmlayout"
 	"github.com/lxn/walk"
 	"github.com/lxn/win"
+	"syscall"
+	"unsafe"
 )
 
 const (
 	htmlayoutClassName = "walkHtmLayoutCLassName"
 )
 
+var (
+	hwnd2Widget = make(map[win.HWND]walk.Widget)
+)
+
 type HtmLayout struct {
 	walk.WidgetBase
 	pageUrlChangedPublisher     walk.EventPublisher
 	pageContentChangedPublisher walk.EventPublisher
-	format                      string
 	// htmlPath to load
 	pageUrl string
 	// html as string
@@ -33,10 +38,22 @@ func newHtmLayout(parent walk.Container) (*HtmLayout, error) {
 		de,
 		parent,
 		htmlayoutClassName,
-		win.CS_HREDRAW|win.CS_VREDRAW,
+		win.WS_CHILDWINDOW|win.WS_OVERLAPPEDWINDOW|win.WS_CLIPSIBLINGS,
 		0); err != nil {
 		return nil, err
 	}
+	hwnd2Widget[de.Handle()] = de
+
+	// go func() {
+	// 	win.ShowWindow(de.Handle(), win.SW_SHOW)
+	// 	win.UpdateWindow(de.Handle())
+	// 	var msg win.MSG
+
+	// for win.GetMessage(&msg, 0, 0, 0) > 0 {
+	// 	win.TranslateMessage(&msg)
+	// 	win.DispatchMessage(&msg)
+	// }
+	// }()
 
 	de.MustRegisterProperty("PageUrl", walk.NewProperty(
 		func() interface{} {
@@ -57,6 +74,7 @@ func newHtmLayout(parent walk.Container) (*HtmLayout, error) {
 			return nil
 		},
 		de.pageContentChangedPublisher.Event()))
+
 	return de, nil
 }
 
@@ -66,6 +84,7 @@ func NewHtmLayout(parent walk.Container, url string) (*HtmLayout, error) {
 		return nil, err
 	}
 	de.pageUrl = url
+	gohl.EnableDebug()
 	return de, nil
 }
 
@@ -76,10 +95,6 @@ func NewHtmLayoutWithContent(parent walk.Container, html string) (*HtmLayout, er
 	}
 	w.pageContent = html
 	return w, nil
-}
-
-func (*HtmLayout) LayoutFlags() walk.LayoutFlags {
-	return walk.GrowableHorz
 }
 
 func (de *HtmLayout) MinSizeHint() walk.Size {
@@ -103,44 +118,50 @@ func (de *HtmLayout) PageContentChanged() *walk.Event {
 }
 
 func (de *HtmLayout) WndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
-	println(msg, win.WM_CREATE)
-	// htmlayout message loop
+	// htmlayout handle the msg first
 	ret, handled := gohl.ProcNoDefault(hwnd, msg, wParam, lParam)
-	println("procNoDefault:", handled, ret)
-	if handled { //先把消息给HTMLayout
-		println("")
+	println("procNoDefault:", handled, msg)
+	if handled {
 		return uintptr(ret)
 	}
 	// begin default message loop
-	// switch msg {
-	// case win.WM_CREATE:
-	// case 34:
-	// println("loading", "a.html", hwnd, de.Handle())
-	// if err := gohl.LoadFile(hwnd, "a.html"); err != nil {
-	// 	println("gohl.LoadFile failed:", err.Error())
-	// }
-	// }
+	switch msg {
+	case win.WM_CREATE: // this would not be called
+		println("WM_CREATE loading", "a.html", hwnd, de.Handle())
+		if err := gohl.LoadFile(hwnd, "a.html"); err != nil {
+			println("gohl.LoadFile failed:", err.Error())
+		}
+	}
 	return de.WindowBase.WndProc(hwnd, msg, wParam, lParam)
 }
 
-func init() {
-	// var wc win.WNDCLASSEX
-	// wc.CbSize = uint32(unsafe.Sizeof(wc))
-	// wc.Style = win.CS_HREDRAW | win.CS_VREDRAW
-	// wc.LpfnWndProc = syscall.NewCallback(wndProc)
-	// wc.CbClsExtra = 0
-	// wc.CbWndExtra = 0
-	// wc.HInstance = win.GetModuleHandle(nil)
-	// wc.HbrBackground = win.GetSysColorBrush(win.COLOR_WINDOWFRAME)
-	// wc.LpszMenuName = syscall.StringToUTF16Ptr("")
-	// wc.LpszClassName = syscall.StringToUTF16Ptr(htmlayoutClassName)
-	// wc.HIconSm = win.LoadIcon(0, win.MAKEINTRESOURCE(win.IDI_APPLICATION))
-	// wc.HIcon = win.LoadIcon(0, win.MAKEINTRESOURCE(win.IDI_APPLICATION))
-	// wc.HCursor = win.LoadCursor(0, win.MAKEINTRESOURCE(win.IDC_ARROW))
+func wndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
+	w, ok := hwnd2Widget[hwnd]
+	if !ok {
+		return win.DefWindowProc(hwnd, msg, wParam, lParam)
+	}
 
-	// atom := win.RegisterClassEx(&wc)
-	// if atom == 0 {
-	// 	panic("Registering Class Failed:")
-	// }
-	walk.MustRegisterWindowClass(htmlayoutClassName)
+	return w.WndProc(hwnd, msg, wParam, lParam)
+}
+
+func init() {
+	var wc win.WNDCLASSEX
+	wc.CbSize = uint32(unsafe.Sizeof(wc))
+	wc.Style = win.CS_HREDRAW | win.CS_VREDRAW
+	wc.LpfnWndProc = syscall.NewCallback(wndProc)
+	wc.CbClsExtra = 0
+	wc.CbWndExtra = 0
+	wc.HInstance = win.GetModuleHandle(nil)
+	wc.HbrBackground = win.GetSysColorBrush(win.COLOR_WINDOWFRAME)
+	wc.LpszMenuName = syscall.StringToUTF16Ptr("")
+	wc.LpszClassName = syscall.StringToUTF16Ptr(htmlayoutClassName)
+	wc.HIconSm = win.LoadIcon(0, win.MAKEINTRESOURCE(win.IDI_APPLICATION))
+	wc.HIcon = win.LoadIcon(0, win.MAKEINTRESOURCE(win.IDI_APPLICATION))
+	wc.HCursor = win.LoadCursor(0, win.MAKEINTRESOURCE(win.IDC_ARROW))
+
+	atom := win.RegisterClassEx(&wc)
+	if atom == 0 {
+		panic("Registering Class Failed:")
+	}
+	// walk.MustRegisterWindowClass(htmlayoutClassName)
 }
