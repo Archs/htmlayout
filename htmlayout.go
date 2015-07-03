@@ -120,7 +120,7 @@ func (de *HtmLayout) PageContentChanged() *walk.Event {
 func (de *HtmLayout) WndProc(hwnd win.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 	// htmlayout handle the msg first
 	ret, handled := gohl.ProcNoDefault(hwnd, msg, wParam, lParam)
-	println("procNoDefault:", handled, msg)
+	// println("procNoDefault:", handled, msg)
 	if handled {
 		return uintptr(ret)
 	}

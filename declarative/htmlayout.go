@@ -67,8 +67,8 @@ func (de HtmLayout) Create(builder *Builder) error {
 			*de.AssignTo = w
 		}
 
-		println("loading", "a.html", w.Handle(), w.Handle())
-		if err := gohl.LoadFile(w.Handle(), "a.html"); err != nil {
+		println("loading", de.PageUrl.(string), w.Handle(), w.Handle())
+		if err := gohl.LoadFile(w.Handle(), de.PageUrl.(string)); err != nil {
 			println("gohl.LoadFile failed:", err.Error())
 		}
 
