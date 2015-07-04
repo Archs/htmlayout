@@ -44,7 +44,7 @@ func newHtmLayout(parent walk.Container) (*HtmLayout, error) {
 		return nil, err
 	}
 	hwnd2Widget[de.Handle()] = de
-
+	// println("post", win.PostMessage(de.Handle(), win.WM_CREATE, 0, 0))
 	// go func() {
 	// 	win.ShowWindow(de.Handle(), win.SW_SHOW)
 	// 	win.UpdateWindow(de.Handle())

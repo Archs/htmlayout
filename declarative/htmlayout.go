@@ -5,7 +5,6 @@
 package declarative
 
 import (
-	"github.com/Archs/go-htmlayout"
 	"github.com/Archs/htmlayout"
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"
@@ -67,10 +66,11 @@ func (de HtmLayout) Create(builder *Builder) error {
 			*de.AssignTo = w
 		}
 
-		println("loading", de.PageUrl.(string), w.Handle(), w.Handle())
-		if err := gohl.LoadFile(w.Handle(), de.PageUrl.(string)); err != nil {
-			println("gohl.LoadFile failed:", err.Error())
-		}
+		// println("loading", de.PageUrl.(string), w.Handle(), w.Handle())
+		// if err := gohl.LoadFile(w.Handle(), de.PageUrl.(string)); err != nil {
+		// 	println("gohl.LoadFile failed:", err.Error())
+		// }
+		// win.UpdateWindow(w.Handle())
 
 		return nil
 	})
